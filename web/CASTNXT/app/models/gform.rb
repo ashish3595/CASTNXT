@@ -1,2 +1,0 @@
-class Gform < ApplicationRecord
-end
