@@ -1,6 +1,9 @@
 class HomeController < ApplicationController
 
   def index
+    Rails.logger.debug(params)
+    Rails.logger.debug("HERE")
+    puts "HERE"
     if session.key?(:userEmail) and session.key?(:userType)
       session_redirect
     end
@@ -8,7 +11,9 @@ class HomeController < ApplicationController
     if params.key?(:email) and params.key?(:password)
       if correct_user?(params)
       session[:userEmail] = params[:email]
-      session[:userType] = params[:type]
+      session[:userType] = User.find_by(:email => params[:email], :password => params[:password]).userType
+      Rails.logger.debug("Session")
+      Rails.logger.debug(session[:userType])
       session_redirect
       else
         render json: {comment: "User not found!"}, status: 400
@@ -56,6 +61,7 @@ class HomeController < ApplicationController
     elsif session[:userType] == "designer"
       redirect_to designer_url
     else
+      Rails.logger.debug("Error in route")
       redirect_to user_url
     end
   end
