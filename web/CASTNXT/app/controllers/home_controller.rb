@@ -14,7 +14,7 @@ class HomeController < ApplicationController
       session[:userType] = User.find_by(:email => params[:email], :password => params[:password]).userType
       Rails.logger.debug("Session")
       Rails.logger.debug(session[:userType])
-      session_redirect
+      render json: {comment: "User found!"}, status: 200
       else
         render json: {comment: "User not found!"}, status: 400
       end
