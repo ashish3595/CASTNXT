@@ -5,14 +5,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import PropTypes from 'prop-types'
-import './app.css';
+import './Main.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-import LandingPage from '../components/LandingPage';
+import Main from './Main'
 
 document.addEventListener('DOMContentLoaded', () => {
   ReactDOM.render(
-    <LandingPage />,
+    <Main name="React" />,
     document.body.appendChild(document.createElement('div')),
   )
 })
