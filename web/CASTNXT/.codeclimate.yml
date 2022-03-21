@@ -1,0 +1,14 @@
+ duplication:
+    enabled: false
+    config:
+      languages:
+      - ruby
+exclude_patterns:
+  - .bundle/
+  - spec/**/*
+  - benchmarks/**/*
+  - node_modules/
+  - bin/
+  - coverage/
+  - public/
+  - javascript/
