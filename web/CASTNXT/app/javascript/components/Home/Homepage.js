@@ -1,34 +1,35 @@
-import React, {Component} from 'react'
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormControl from '@mui/material/FormControl';
-import FormLabel from '@mui/material/FormLabel';
-import axios from 'axios';
+import React, {Component} from "react"
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+import axios from "axios";
 
 class Homepage extends Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            name: "",
-            email: "",
-            password: "",
-            confirmPassword: "",
+            signUpName: "",
+            signUpEmail: "",
+            signUpPassword: "",
+            signUpConfirmPassword: "",
+            signUpRole: "USER",
             loginEmail: "",
             loginPassword: "",
-            role: "user",
             nameError: false,
             emailError: false,
             passwordError: false,
-            loginError: false,
             passwordErrorText: "",
             tabValue: 0,
-            signUpError: false
+            status: "",
+            message: "",
+            disableSubmit: false
         }
     }
 
@@ -45,9 +46,8 @@ class Homepage extends Component {
     }
 
     signUp = () => {
-        //Error Validation
         let errors = false
-        let email = this.state.email
+        let email = this.state.signUpEmail
         let emailValid = email.toLowerCase() .match(/^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
                                 
         if(!emailValid) {
@@ -57,16 +57,14 @@ class Homepage extends Component {
             errors = true
         }
         
-        // Check if password and confirm password match
-        if(this.state.password !== this.state.confirmPassword) {
+        if(this.state.signUpPassword !== this.state.signUpConfirmPassword) {
             this.setState({
                 passwordError: true,
                 passwordErrorText: "The passwords must match"
             })
             errors = true
         }
-        // Check if the length of the password is at least 8 chars
-        else if(this.state.password.length < 8) {
+        else if(this.state.signUpPassword.length < 8) {
             this.setState({
                 passwordError: true,
                 passwordErrorText: "The minimum length of the password is 8 characters"
@@ -77,14 +75,13 @@ class Homepage extends Component {
         // If there are no errors, call sign up api to add the new user
         if(!errors) {
             this.setState({
-                passwordError: false,
-                emailError: false
+                disableSubmit: true
             })
             
-            let name = this.state.name
-            let email = this.state.email
-            let password = this.state.password
-            let role = this.state.role
+            let name = this.state.signUpName
+            let email = this.state.signUpEmail
+            let password = this.state.signUpPassword
+            let role = this.state.signUpRole
             
             //Make API call
             axios.post("/home/signup", {
@@ -94,12 +91,18 @@ class Homepage extends Component {
                 type: role
             })
             .then((res) => {
-                sessionStorage.setItem('userId', res.data.userId);
+                this.setState({
+                    status: true,
+                    message: ""
+                })
+                
                 window.location.href = res.data.redirect_path;
             })
             .catch((err) => {
                 this.setState({
-                    signUpError: true
+                    disableSubmit: false,
+                    status: false,
+                    message: err.response.data.comment
                 })
                 
             })
@@ -110,20 +113,27 @@ class Homepage extends Component {
         let email = this.state.loginEmail
         let password = this.state.loginPassword
         
+        this.setState({
+            disableSubmit: true
+        })
+        
         axios.post("/home/login", {
                 email: email,
                 password: password
             })
             .then((res) => {
                 this.setState({
-                    loginError: false
+                    status: true,
+                    message: ""
                 })
-                sessionStorage.setItem('userId', res.data.userId);
+                
                 window.location.href = res.data.redirect_path;
             })
             .catch((err) => {
                 this.setState({
-                    loginError: true
+                    disableSubmit: false,
+                    status: false,
+                    message: err.response.data.comment
                 })
             })
     }
@@ -131,85 +141,85 @@ class Homepage extends Component {
     render() {
 
         let imageStyle = { 
-            padding: '1.2%', 
-            textAlign: 'center', 
-            backgroundColor:'black', 
-            display: 'inline-block'
+            padding: "1.2%", 
+            textAlign: "center", 
+            backgroundColor:"black", 
+            display: "inline-block"
         }
 
         return (
             <div>
                 <div className="container">
-                    <div style={imageStyle} className='centered'>
-                        <img src={require('../../assets/images/logo.png')} alt="FASHIONXT" style={{ width: '300px', height: '30px' }} />
+                    <div style={imageStyle} className="centered">
+                        <img src={require("../../assets/images/logo.png")} alt="FASHIONXT" style={{ width: "300px" }} />
                     </div>
-                    <div className="row" style={{ color: 'white' }}>
+                    <div className="row" style={{ color: "white" }}>
                         <div className="col-md-6 offset-md-3 login-box">
                             <div>
                                 <Tabs variant="fullWidth" value={this.state.tabValue} onChange={this.handleTabChange} centered>
                                     <Tab style={{focus: "color: #719ECE"}} label="Login" />
                                     <Tab label="Sign Up" />
                                 </Tabs>
-                                <hr style={{ color: 'black' }} />
+                                <hr style={{ color: "black" }} />
                             </div>
 
                             {this.state.tabValue === 0 &&
                                 <div className="login-background">
-                                    <TextField focused style={{ width: '60%' }} name="loginEmail" 
+                                    <TextField focused style={{ width: "60%" }} name="loginEmail" 
                                         type="email" label="Email" value={this.state.loginEmail} onChange={this.handleChange} /><br /><br />
-                                    <TextField focused style={{ width: '60%' }} name="loginPassword" 
+                                    <TextField focused style={{ width: "60%" }} name="loginPassword" 
                                         type="password" label="Password" value={this.state.loginPassword} onChange={this.handleChange} /><br /><br />
-                                    <Button variant="contained" onClick={this.login}>Login</Button>
-                                    {this.state.loginError && 
+                                    <Button disabled={this.state.disableSubmit} variant="contained" onClick={this.login}>Login</Button>
+                                    
+                                    {(this.state.status !== "" && !this.state.status) &&
                                         <div>
                                             <br />
-                                            <span style={{color: 'red'}}>The entered Username or Password is incorrect.</span>
+                                            <span style={{color: "red"}}>{this.state.message}</span>
                                         </div>
                                     }
                                 </div>
                             }
 
                             {this.state.tabValue === 1 &&
-                                <div className="container login-background" style={{overflowY: 'auto'}}>
-                                    <FormControl style={{ textAlign: 'center', color: 'black' }}>
+                                <div className="login-background" style={{overflowY: "auto"}}>
+                                    <FormControl style={{ textAlign: "center", color: "black" }}>
                                         <FormLabel>Welcome to CastNXT! Please select your role</FormLabel>
-                                        <div>
+                                        <div style={{display: "flex", justifyContent: "center", alignItems: "center"}}>
                                             <RadioGroup
                                                 row
-                                                name="role"
+                                                name="signUpRole"
                                                 aria-labelledby="demo-row-radio-buttons-group-label"
-                                                defaultValue="user"
+                                                defaultValue="USER"
                                                 onChange={this.handleChange}
-                                                style={{textAlign: 'center'}}
                                             >
                                                 <FormControlLabel value="USER" control={<Radio />} label="User" />
                                                 <FormControlLabel value="ADMIN" control={<Radio />} label="Admin" />
                                                 <FormControlLabel value="CLIENT" control={<Radio />} label="Client" />
                                             </RadioGroup>
                                         </div>
-                                        <br />
-                                        <TextField size="small" focused name="name" type="text" label="Name" value={this.state.name} 
-                                            onChange={this.handleChange} /><br />
-                                            
-                                        <TextField size="small" focused name="email" type="email" label="Email" value={this.state.email} 
-                                            error={this.state.emailError} helperText={this.state.emailError ? "Enter a valid email address" : ""} 
-                                            onChange={this.handleChange} /><br />
-                                            
-                                        <TextField size="small" focused name="password" type="password" label="Password" value={this.state.password} 
-                                            error={this.state.passwordError} helperText={this.state.passwordError ? this.state.passwordErrorText : ""} 
-                                            onChange={this.handleChange} /><br />
-                                            
-                                        <TextField size="small" focused name="confirmPassword" type="password" label="Confirm Password" value={this.state.confirmPassword} 
-                                            error={this.state.passwordError} helperText={this.state.passwordError ? this.state.passwordErrorText : ""} 
-                                            onChange={this.handleChange} /><br />
                                     </FormControl>
-                                    <br />
-                                    <Button className="sign-up-button" variant="contained" onClick={this.signUp}>Sign Up</Button>
+                                    <br /><br />
+                                    <TextField size="small" focused style={{ width: "60%" }} name="signUpName" type="text" label="Name" value={this.state.signUpName} 
+                                        onChange={this.handleChange} /><br /><br />
+                                        
+                                    <TextField size="small" focused style={{ width: "60%" }} name="signUpEmail" type="email" label="Email" value={this.state.signUpEmail} 
+                                        error={this.state.emailError} helperText={this.state.emailError ? "Enter a valid email address" : ""} 
+                                        onChange={this.handleChange} /><br /><br />
+                                            
+                                    <TextField size="small" focused style={{ width: "60%" }} name="signUpPassword" type="password" label="Password" value={this.state.signUpPassword} 
+                                        error={this.state.passwordError} helperText={this.state.passwordError ? this.state.passwordErrorText : ""} 
+                                        onChange={this.handleChange} /><br /><br />
+                                            
+                                    <TextField size="small" focused style={{ width: "60%" }} name="signUpConfirmPassword" type="password" label="Confirm Password" value={this.state.signUpConfirmPassword} 
+                                        error={this.state.passwordError} helperText={this.state.passwordError ? this.state.passwordErrorText : ""} 
+                                        onChange={this.handleChange} /><br /><br />
                                     
-                                    {this.state.signUpError &&
-                                        <div style={{color: 'red'}}>
+                                    <Button disabled={this.state.disableSubmit} className="sign-up-button" variant="contained" onClick={this.signUp}>Sign Up</Button>
+                                    
+                                    {(this.state.status !== "" && !this.state.status) &&
+                                        <div>
                                             <br />
-                                            <span>An account with the given Email already exists.</span>
+                                            <span style={{color: "red"}}>{this.state.message}</span>
                                         </div>
                                     }
                                 </div>

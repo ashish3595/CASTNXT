@@ -8,6 +8,11 @@
   background: #F2F3F4;
 }
 
+
+#mui-14{
+  margin: auto;
+}
+
 .App {
   text-align: center;
   background-image: url('../assets/images/background.png');
@@ -85,6 +90,8 @@ body {
 
 .user-events {
   margin-top: 1%;
+  border-radius: 10px;
   background-color: white;
-  height: 100vh;
+  padding-top: 25px;
+  padding-bottom: 50px;
 }

@@ -1,103 +1,171 @@
 class SlidesController < ApplicationController
-  before_action :set_slide, only: %i[ show edit update destroy ]
-
-  # GET /slides or /slides.json
-  def index
-    @slides = Slide.all
-  end
-
-  # GET /slides/1 or /slides/1.json
-  def show
-  end
-
-  # GET /slides/new
-  def new
-    @slide = Slide.new
-  end
-
-  # GET /slides/1/edit
-  def edit
-  end
-
-  # POST /slides or /slides.json
+  # POST /admin/events/:id/slides
+  # POST /user/events/:id/slides
   def create
-    if is_user_logged_in?('USER')
-      event = Event.find_by(:_id => params[:event_id])
-      user = Talent.find_by(:_id => session[:userId])
-      if "ACCEPTING".casecmp? event.status
-        if is_new_slide?(event, user)
-          create_slide(event, user, params)
-          render json: {comment: 'Registered successfully!'}, status: 201
-        else
-          update_slide(event, user, params)
-          render json: {comment: 'Updated registration!'}, status: 200
-        end
-      else
-        render json: {comment: "Event is no longer accepting submissions!"}, status: 400
-      end
+    if "ADMIN".casecmp? session[:userType]
+      create_producer_slide
+    elsif "CLIENT".casecmp? session[:userType]
+      create_client_slide
     else
-      render json: {redirect_path: '/'}, status: 403
-    end
-  end
-
-  # PATCH/PUT /slides/1 or /slides/1.json
-  def update
-    respond_to do |format|
-      if @slide.update(slide_params)
-        format.html { redirect_to slide_url(@slide), notice: "Slide was successfully updated." }
-        format.json { render :show, status: :ok, location: @slide }
-      else
-        format.html { render :edit, status: :unprocessable_entity }
-        format.json { render json: @slide.errors, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  # DELETE /slides/1 or /slides/1.json
-  def destroy
-    @slide.destroy
-
-    respond_to do |format|
-      format.html { redirect_to slides_url, notice: "Slide was successfully destroyed." }
-      format.json { head :no_content }
+      create_user_slide
     end
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
-    def set_slide
-      @slide = Slide.find(params[:id])
-    end
-
-    # Only allow a list of trusted parameters through.
-    def slide_params
-      params.fetch(:slide, {})
-    end
+  
+  def create_client_slide
+    render json: {redirect_path: "/"}, status: 403
+  end
     
-    def get_event eventId
-      return Event.find_by(:_id => eventId)
+  def create_user_slide
+    begin
+      if is_user_logged_in?("USER")
+        eventId = params[:event_id]
+        talentId = session[:userId]
+        formData = params[:formData]
+        event = get_event(eventId)
+        
+        if "ACCEPTING".casecmp? event.status
+          if is_new_slide?(eventId, talentId)
+            create_slide(eventId, talentId, formData)
+            render json: {comment: "Registered successfully!"}, status: 201
+          else
+            slide = get_talent_slide(eventId, talentId)
+            data = {}
+            data[:formData] = formData
+            data[:curated] = slide.curated
+            
+            update_slide_data(slide, data)
+            render json: {comment: "Updated registration!"}, status: 200
+          end
+        else
+          render json: {comment: "Event is no longer accepting submissions!"}, status: 400
+        end
+      else
+        render json: {redirect_path: "/"}, status: 403
+      end
+    rescue Exception
+      render json: {comment: "Internal Error!"}, status: 500
     end
-    
-    def get_user userId
-      return Talent.find_by(:_id => userId)
+  end
+  
+  def create_producer_slide
+    begin
+      if is_user_logged_in?("ADMIN")
+        eventId = params[:event_id]
+        event = get_event(eventId)
+        
+        update_event_clients(event, params[:clients])
+        update_event_slides(params[:slides])
+        
+        render json: {comment: "Updated Event Decks!"}, status: 200
+      else
+        render json: {redirect_path: "/"}, status: 403
+      end
+    rescue Exception
+      render json: {comment: "Internal Error!"}, status: 500
     end
+  end
     
-    def is_new_slide? event, user
-      if Slide.where(:event_id => event._id, :talent_id => user._id).blank?
-        return true
+  def update_event_slides data
+    data.keys.each do |slideId|
+      slide = get_slide(slideId)
+      update_slide_data(slide, data[slideId])
+    end
+  end
+  
+  def update_event_clients event, data
+    eventSlideIds = get_event_slide_ids(event)
+    clients = Client.all
+    
+    clients.each do |client|
+      clientId = client._id.to_str
+      otherEventSlides = []
+      
+      client.slide_ids.each do |slideId|
+        unless eventSlideIds.include? slideId.to_str
+          otherEventSlides << slideId.to_str
+        end
       end
       
-      return false
+      clientEventIds = client.event_ids
+      clientEventIds.delete(event._id)
+      if !data[clientId][:slideIds].empty?
+        clientEventIds << event._id
+        
+        if negotiation_exists?(clientId, event._id)
+          negotiation = get_negotiation(clientId, event._id)
+          update_negotiaton_intermediates(negotiation, data[clientId][:slideIds])
+        else
+          create_negotiaton(event._id, clientId, data[clientId][:slideIds])
+        end
+      end
+      
+      clientSlideIds = otherEventSlides + data[clientId][:slideIds]
+      update_client_slides(client, clientSlideIds, clientEventIds)
+    end
+  end
+  
+  def get_event_slide_ids event
+    eventSlideIds = []
+    
+    event.slide_ids.each do |slideId|
+      eventSlideIds << slideId.to_str
     end
     
-    def create_slide event, user, params
-      Slide.create(:event_id => event._id, :talent_id => user._id, :curated => false, :submission_status => 'UNDER REVIEW', :data => params[:formData])
+    return eventSlideIds
+  end
+  
+  def get_event eventId
+    return Event.find_by(:_id => eventId)
+  end
+  
+  def get_slide slideId
+    return Slide.find_by(:_id => slideId)
+  end
+  
+  def get_talent_slide eventId, talentId
+    return Slide.find_by(:event_id => eventId, :talent_id => talentId)
+  end
+  
+  def update_client_slides client, clientSlideIds, clientEventIds
+    client.update(:slide_ids => clientSlideIds, :event_ids => clientEventIds)
+  end
+  
+  def create_slide eventId, talentId, data
+    Slide.create(:event_id => eventId, :talent_id => talentId, :curated => false, :submission_status => "UNDER REVIEW", :data => data)
+  end
+  
+  def update_slide_data(slide, data)
+    slide.update(:curated => data[:curated], :data => data[:formData])
+  end
+  
+  def is_new_slide? eventId, talentId
+    if Slide.where(:event_id => eventId, :talent_id => talentId).blank?
+      return true
     end
     
-    def update_slide event, user, params
-      Slide.update_one(
-        { event_id: event._id, talent_id: user._id },
-        '$set' => { data: params[:formData]}
-      )
+    return false
+  end
+  
+  def get_negotiation clientId, eventId
+    return Negotiation.find_by(:event_id => eventId, :client_id => clientId)
+  end
+  
+  def create_negotiaton eventId, clientId, intermediateSlideIds
+    Negotiation.create(:event_id => eventId, :client_id => clientId, :intermediateSlides => intermediateSlideIds, :finalSlides => [])
+  end
+  
+  def update_negotiaton_intermediates negotiation, intermediateSlideIds
+    negotiation.update(:intermediateSlides => intermediateSlideIds)
+  end
+  
+  def negotiation_exists? clientId, eventId
+    if Negotiation.where(:event_id => eventId, :client_id => clientId).present?
+      return true
     end
+    
+    return false
+  end
+  
 end

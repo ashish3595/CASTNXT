@@ -1,22 +1,21 @@
-import React, {Component} from 'react'
-import Header from '../Navbar/Header';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import axios from 'axios';
+import React, {Component} from "react"
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Paper from "@mui/material/Paper";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import axios from "axios";
+
+import Header from "../Navbar/Header";
 
 class UserHomepage extends Component {
     constructor(props) {
         super(props)
         
-        console.log(properties)
-
         this.state = {
             acceptingTableData: properties.acceptingTableData !== undefined ? properties.acceptingTableData : [],
             submittedTableData: properties.submittedTableData !== undefined ? properties.submittedTableData : [],
@@ -46,7 +45,7 @@ class UserHomepage extends Component {
             acceptingTableData.map((event, i) => {
                 rows.push(
                     <TableRow key={i}>
-                        <TableCell align="center">
+                        <TableCell align="center" onClick={() => {window.location.href="/user/events/"+event.id}}>
                             <b><a href={"/user/events/" + event.id}>{event.title}</a></b>
                         </TableCell>
                     </TableRow>
@@ -73,7 +72,7 @@ class UserHomepage extends Component {
                 if (event.accepting) {
                     rows.push(
                         <TableRow key={i}>
-                            <TableCell align="center">
+                            <TableCell align="center" onClick={() => {window.location.href="/user/events/"+event.id}}>
                                 <b><a href={"/user/events/" + event.id}>{event.title}</a></b>
                             </TableCell>
                             <TableCell align="center">
@@ -84,10 +83,10 @@ class UserHomepage extends Component {
                 } else {
                     rows.push(
                         <TableRow key={i}>
-                            <TableCell>
-                                <b>{event.event}</b>
+                            <TableCell align="center">
+                                <b>{event.title}</b>
                             </TableCell>
-                            <TableCell>
+                            <TableCell align="center">
                                 {event.status}
                             </TableCell>
                         </TableRow>
@@ -108,7 +107,7 @@ class UserHomepage extends Component {
                 <div>
                     <div className="container user-events">
                         <div className="row">
-                            <h1> FashioNXT Events </h1>
+                            <h2> FashioNXT Events </h2>
                         </div>
                         <div className="row">
                             <div className="col-md-6 offset-md-3">
@@ -117,15 +116,15 @@ class UserHomepage extends Component {
                                         <Tab style={{focus: "color: #719ECE"}} label="Events" />
                                         <Tab label="Submissions" />
                                     </Tabs>
-                                    <hr style={{ color: 'black' }} />
+                                    <hr style={{ color: "black" }} />
                                 </div>
                             
                                 {this.state.tabValue === 0 &&
                                     <TableContainer component={Paper}>
                                         <Table aria-label="simple table">
-                                            <TableHead style={{ backgroundColor: '#3498DB' }}>
+                                            <TableHead style={{ backgroundColor: "#3498DB" }}>
                                                 <TableRow>
-                                                    <TableCell align="center" style={{fontSize: '12pt'}}>Events</TableCell>
+                                                    <TableCell align="center" style={{fontSize: "12pt"}}>Events</TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>
@@ -138,10 +137,10 @@ class UserHomepage extends Component {
                                 {this.state.tabValue === 1 &&
                                     <TableContainer component={Paper}>
                                         <Table aria-label="simple table">
-                                            <TableHead style={{ backgroundColor: '#3498DB' }}>
+                                            <TableHead style={{ backgroundColor: "#3498DB" }}>
                                                 <TableRow>
-                                                    <TableCell align="center" style={{fontSize: '12pt'}}>Event</TableCell>
-                                                    <TableCell align="center" style={{fontSize: '12pt'}}>Status</TableCell>
+                                                    <TableCell align="center" style={{fontSize: "12pt"}}>Event</TableCell>
+                                                    <TableCell align="center" style={{fontSize: "12pt"}}>Status</TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>

@@ -1,37 +1,43 @@
 class UserController < ApplicationController
   # GET /user
   def index
-    authenticate_user!('USER')
+    unless is_user_logged_in?("USER")
+      return redirect_to root_path
+    end
     
     acceptingTableData = []
     submittedTableData = []
     
+    talent = get_talent(session[:userId])
     events = Event.all
+
     events.each do |event|
-      submittedFlag = 0
-      
       object = {
         title: event.title,
         id: event._id.to_str
       }
       
-      if user_slide_exists?(event._id.to_str, session[:userId])
-        slide = get_slide(event._id.to_str, session[:userId])
-        submittedFlag = 1
-        object["status"] = slide.submission_status
-      end
-      
-      
-      if submittedFlag == 0
-        if "ACCEPTING".casecmp? event.status
-          acceptingTableData << object
-        end
-      else
+      if talent_slide_exists?(event._id, talent._id)
         if "ACCEPTING".casecmp? event.status
           object["accepting"] = true
+          object["status"] = "SUBMITTED"
+        elsif "FINALIZED".casecmp? event.status
+          object["accepting"] = false
+          if talent_accepted?(event._id, talent._id)
+            object["status"] = "ACCEPTED"
+          else
+            object["status"] = "REJECTED"
+          end
+        else
+          object["accepting"] = false
+          object["status"] = event.status
         end
         
         submittedTableData << object
+      else
+        if "ACCEPTING".casecmp? event.status
+          acceptingTableData << object
+        end
       end
     end
     @properties = {name: session[:userName], acceptingTableData: acceptingTableData, submittedTableData: submittedTableData}
@@ -39,13 +45,34 @@ class UserController < ApplicationController
   
   private
   
-  def get_slide eventId, userId
-    return Slide.find_by(:event_id => eventId, :talent_id => userId)
+  def get_talent talentId
+    return Talent.find_by(:_id => talentId)
   end
   
-  def user_slide_exists? eventId, userId
-    if Slide.where(:event_id => eventId, :talent_id => userId).present?
+  def get_event_negotiations eventId
+    return Negotiation.where(:event_id => eventId)
+  end
+  
+  def get_talent_slide eventId, talentId
+    return Slide.find_by(:event_id => eventId, :talent_id => talentId)
+  end
+  
+  def talent_slide_exists? eventId, talentId
+    if Slide.where(:event_id => eventId, :talent_id => talentId).present?
       return true
+    end
+    
+    return false
+  end
+  
+  def talent_accepted? eventId, talentId
+    slide = get_talent_slide(eventId, talentId)
+    negotiations = get_event_negotiations(eventId)
+    
+    negotiations.each do |negotiation|
+      if negotiation.finalSlides.include? slide._id.to_str
+        return true
+      end
     end
     
     return false

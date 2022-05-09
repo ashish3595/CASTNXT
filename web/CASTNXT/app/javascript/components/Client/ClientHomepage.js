@@ -1,13 +1,14 @@
-import React, {Component} from 'react'
-import Header from '../Navbar/Header';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import axios from 'axios';
+import React, {Component} from "react"
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Paper from "@mui/material/Paper";
+import axios from "axios";
+
+import Header from "../Navbar/Header";
 
 class ClientHomepage extends Component {
     constructor(props) {
@@ -18,10 +19,6 @@ class ClientHomepage extends Component {
         }
     }
     
-    componentDidMount() {
-        
-    }
-    
     renderEventList() {
         const { tableData } = this.state
         
@@ -29,7 +26,7 @@ class ClientHomepage extends Component {
         if (!tableData.length) {
             rows.push(
                  <TableRow key={0}>
-                    <TableCell align="center">
+                    <TableCell colSpan={2} align="center">
                         No ongoing Events right now.
                     </TableCell>
                  </TableRow>
@@ -38,9 +35,10 @@ class ClientHomepage extends Component {
             tableData.map((event, i) => {
                 rows.push(
                     <TableRow key={i}>
-                        <TableCell align="center" onClick={() => {window.location.href="/client/event/"+event.id}}>
-                            <b><a href={"/client/event/"+event.id}>{event.title}</a></b>
+                        <TableCell align="center" onClick={() => {window.location.href="/client/events/"+event.id}}>
+                            <b><a href={"/client/events/"+event.id}>{event.title}</a></b>
                         </TableCell>
+                        <TableCell align="center">{event.status}</TableCell>
                     </TableRow>
                 )
             });
@@ -58,15 +56,17 @@ class ClientHomepage extends Component {
                 <div>
                     <div className="container user-events">
                         <div className="row">
-                            <h1> FashioNXT Events </h1>
+                            <h2> FashioNXT Events </h2>
                         </div>
+                        <hr />
                         <div className="row">
                             <div className="col-md-6 offset-md-3">
                                 <TableContainer component={Paper}>
                                     <Table aria-label="simple table">
-                                        <TableHead style={{ backgroundColor: '#3498DB' }}>
+                                        <TableHead style={{ backgroundColor: "#3498DB" }}>
                                             <TableRow>
                                                 <TableCell align="center">Event</TableCell>
+                                                <TableCell align="center">Status</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>

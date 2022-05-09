@@ -1,44 +1,38 @@
 Rails.application.routes.draw do
 
-  resources :forms
-  resources :slides
-
-  get '/user', to: 'user#index'
-  get '/admin', to: 'admin#index'
-  get '/client', to: 'client#index'
+  root 'home#index'
   
-  scope :admin do 
-    # TODO: update the except block based on actions configured
-    resources :events, :except => [:update]
-    resources :forms, :except => [:edit, :update]
+  get '/logout', to: 'application#logout'
+  
+  resources :home, only: [] do
+    post 'login', :on => :collection
+    post 'signup', :on => :collection
   end
   
-  scope :user do 
-    # TODO: update the except block based on actions configured
-    resources :events do
-      resources :slides
+  resources :user, only: [:index] do
+    collection do
+      resources :events, only: [:show] do
+        resources :slides, only: [:create]
+      end
     end
   end
   
-  # resources :events
-  get '/logout', to: 'application#logout'
+  resources :client, only: [:index] do
+    collection do
+      resources :events, only: [:show] do
+        resources :negotiations, only: [:create]
+      end
+    end
+  end
   
-  root 'home#index'
-  match '/home/login', :controller => 'home', :action => 'login', :via => :post
-  match '/home/signup', :controller => 'home', :action => 'signup', :via => :post
-  
-  get '/user', to: 'user#index'
-  match '/user/events', :controller => 'user', :action => 'events', :via => :get
-  
-  get '/admin', to: 'admin#index'
-  match '/admin/events', :controller => 'admin', :action => 'events', :via => :get
-  match '/admin/create-event', :controller => 'admin', :action => 'create_event', :via => :get
-  match '/admin/create-master-stack', :controller => 'admin', :action => 'index', :via => :get
-  match '/admin/create-client-stack', :controller => 'admin', :action => 'index', :via => :get
-  match '/admin/event/:id', :controller => 'admin', :action => 'index', :via => :get
-  
-  get '/client', to: 'client#index'
-  match '/client/events', :controller => 'client', :action => 'events', :via => :get
-  match '/client/event/:id', :controller => 'client', :action => 'index', :via => :get
+  resources :admin, only: [:index] do
+    collection do
+      resources :events, only: [:show, :update, :new, :create] do
+        resources :negotiations, only: [:create]
+        resources :slides, only: [:create]
+      end
+      resources :forms, :only => [:show, :create]
+    end
+  end
   
 end

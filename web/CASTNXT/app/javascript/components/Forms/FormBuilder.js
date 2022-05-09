@@ -1,9 +1,9 @@
-import React, { Component } from 'react';
+import React, { Component } from "react";
+import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
+import Form from "@rjsf/core";
 
-import {FormBuilder} from '@ginkgo-bioworks/react-json-schema-form-builder';
-import Form from '@rjsf/core';
-import Slide from './Slide.js';
-import './Forms.css';
+import Slide from "./Slide.js";
+import "./Forms.css";
 
 const customFormInputs = {
   array: {
@@ -29,9 +29,8 @@ class FormBuilderContainer extends Component {
   }
   
   render() {
-    console.log(this.state)
     return (
-        <div className="container" style={{ backgroundColor: 'white', height: '100%'}}>
+        <div className="container" style={{ backgroundColor: "white", height: "100%"}}>
         <div>
           <FormBuilder
             schema={this.props.schema}
@@ -42,7 +41,8 @@ class FormBuilderContainer extends Component {
             }}
             mods={
               {
-                customFormInputs
+                customFormInputs,
+                showFormHead: false,
               }
             }
           />

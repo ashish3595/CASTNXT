@@ -1,91 +1,70 @@
 class EventsController < ApplicationController
-
-  # GET /events or /events.json
-  def index
-    if is_user_logged_in?
-      if "ADMIN".casecmp? session[:userType]
-        tableData = []
-        
-        eventIds = Producer.find_by(:_id => session[:userId]).event_ids
-        eventIds.each do |eventId|
-          event = Event.find_by(:_id => eventId)
-          object = {
-            id: eventId,
-            title: event.title,
-            status: event.status
-          }
-          tableData << object
-        end
-        render json: {tableData: tableData}, status: 200
-      elsif "CLIENT".casecmp? session[:userType]
-        # perform client action
-      else
-        # perform user action
-      end
-    else
-      user_event
-    end
-  end
-
-  # GET /events/1 or /events/1.json
+  # GET /admin/events/:id
+  # GET /client/events/:id
+  # GET /user/events/:id
   def show
     if "ADMIN".casecmp? session[:userType]
-      # perform admin action
+      producer_event
     elsif "CLIENT".casecmp? session[:userType]
-      # perform client action
+      client_event
     else
       user_event
     end
   end
 
-  # GET /events/new
+  # GET /admin/events/new
   def new
-    authenticate_user!('admin')
-    @event = Event.new
-    clientsInfo = []
-    formIds = []
-    clients = Client.all.to_a
-    clients.each do |client|
-      data = {
-        id: client._id,
-        name: client.name
-      }
-      clientsInfo << data
+    unless is_user_logged_in?("ADMIN")
+      return redirect_to root_path
     end
-    forms = Form.where(:producer_id => session[:userId])
+    
+    formIds = []
+
+    forms = get_producer_forms(session[:userId])
     forms.each do |form|
       formIds << form._id.to_str
     end
-    @properties = {formIds: formIds, clientsInfo: clientsInfo}
+
+    @properties = {name: session[:userName], formIds: formIds}
   end
 
-  # GET /events/1/edit
-  def edit
-  end
-
-  # POST /events or /events.json
-  def create
-    # only admin allowed to create a new event
-    if is_user_logged_in?('ADMIN')
-      Rails.logger.debug('event_params')
-      Rails.logger.debug(event_params)
-      @event = Event.new(form_id:params[:form_id], producer_id:params[:producer_id], client_ids:params[:client_ids], status:params[:status], title:params[:title], description:params[:description])
-      if @event.save
-        #render
-        # render :show, status: 201, location: @event
-        render json: {redirect_path: '/admin'}, status: 201
+  # PUT /admin/events/:id
+  def update
+    begin
+      if is_user_logged_in?("ADMIN")
+        eventId = params[:id]
+        event = get_event(eventId)
+        
+        update_event_status(event, params[:status])
+        render json: {comment: "Updated Event Status!"}, status: 200
       else
-        render json: @event.errors, status: 400
+        render json: {redirect_path: "/"}, status: 403
       end
-    else
-      render json: {redirect_path: '/'}, status: 403
+    rescue Exception
+      render json: {comment: "Internal Error!"}, status: 500
+    end
+  end
+
+  # POST /admin/events
+  def create
+    begin
+      if is_user_logged_in?("ADMIN")
+        create_event(session[:userId], params)
+        render json: {comment: "Successfully created Event!"}, status: 201
+      else
+        render json: {redirect_path: "/"}, status: 403
+      end
+    rescue Exception
+      render json: {comment: "Internal Error!"}, status: 500
     end
   end
 
   private
   
   def user_event
-    authenticate_user!('USER')
+    unless is_user_logged_in?("USER")
+      return redirect_to root_path
+    end
     
     eventId = params[:id]
     if unknown_event?(eventId)
@@ -94,16 +73,69 @@ class EventsController < ApplicationController
     
     event = get_event(eventId)
     form = get_form(event.form_id)
+    
+    data = JSON.parse(form.data)
+    data[:id] = eventId
+    data[:title] = event.title
+    data[:description] = event.description
+    
+    if talent_slide_exists?(eventId, session[:userId])
+      slide = get_talent_slide(eventId, session[:userId])
+      data[:formData] = JSON.parse(slide.data)
+    end
+    
+    @properties = {name: session[:userName], data: data}
+  end
+  
+  def producer_event
+    unless is_user_logged_in?("ADMIN")
+      return redirect_to root_path
+    end
+    
+    eventId = params[:id]
+    if unknown_event?(eventId)
+      return
+    end
+    
+    event = get_event(eventId)
+    form = get_form(event.form_id)
+    
+    data = JSON.parse(form.data)
+    data[:id] = eventId
+    data[:title] = event.title
+    data[:description] = event.description
+    data[:status] = event.status
+    
+    data[:clients] = build_producer_event_clients(event)
+    data[:slides] = build_producer_event_slides(event)
+    
+    @properties = {name: session[:userName], data: data}
+  end
+  
+  def client_event
+    unless is_user_logged_in?("CLIENT")
+      return redirect_to root_path
+    end
+    
+    eventId = params[:id]
+    if unknown_event?(eventId)
+      return
+    end
+    
+    event = get_event(eventId)
+    client = get_client(session[:userId])
+    form = get_form(event.form_id)
+    negotiation = get_negotiation(client._id, event._id)
       
     data = JSON.parse(form.data)
-    data["id"] = eventId
-    data["title"] = event.title
-    data["description"] = event.description
+    data[:id] = eventId
+    data[:title] = event.title
+    data[:description] = event.description
+    data[:status] = event.status
+    data[:negotiationId] = negotiation._id.to_str
+    data[:finalizedIds] = negotiation.finalSlides
     
-    if user_slide_exists?(eventId, session[:userId])
-      slide = get_slide(eventId, session[:userId])
-      data["formData"] = JSON.parse(slide.data)
-    end
+    data[:slides] = build_client_event_slides(event, client)
     
     @properties = {name: session[:userName], data: data}
   end
@@ -117,28 +149,130 @@ class EventsController < ApplicationController
     end
   end
   
+  def build_producer_event_clients event
+    clientsObject = {}
+    
+    clients = Client.all
+    clients.each do |client|
+      clientObject = {}
+      clientObject[:name] = client.name
+      clientObject[:slideIds] = []
+      clientObject[:finalizedIds] = []
+      clientObject[:negotiationId] = ""
+      clientObject[:preferenceSubmitted] = false
+      
+      if negotiation_exists?(client._id, event._id)
+        negotiation = get_negotiation(client, event)
+        
+        clientObject[:negotiationId] = negotiation._id.to_str
+        clientObject[:finalizedIds] = negotiation.finalSlides
+        clientObject[:slideIds] = negotiation.intermediateSlides
+        clientObject[:preferenceSubmitted] = true
+      end
+      
+      clientsObject[client._id.to_str] = clientObject
+    end
+    
+    return clientsObject
+  end
+  
+  def build_producer_event_slides event
+    slidesObject = {}
+    
+    event.slide_ids.each do |slideId|
+      slide = get_slide(slideId)
+      talent = get_talent(slide.talent_id)
+      
+      slideObject = {}
+      slideObject[:talentName] = talent.name
+      slideObject[:formData] = JSON.parse(slide.data)
+      slideObject[:curated] = slide.curated
+      
+      slidesObject[slideId.to_str] = slideObject
+    end
+    
+    return slidesObject
+  end
+  
+  def build_client_event_slides event, client
+    slidesObject = {}
+    
+    (event.slide_ids & client.slide_ids).each do |slideId|
+      slide = get_slide(slideId)
+      talent = get_talent(slide.talent_id)
+      
+      slideObject = {}
+      slideObject[:talentName] = talent.name
+      slideObject[:formData] = JSON.parse(slide.data)
+      
+      slidesObject[slideId.to_str] = slideObject
+    end
+    
+    negotiation = get_negotiation(client._id, event._id)
+    orderedSlidesObject = {}
+    
+    negotiation.intermediateSlides.each do |slideId|
+      orderedSlidesObject[slideId] = slidesObject[slideId]
+    end
+    
+    slidesObject = orderedSlidesObject
+    
+    return slidesObject
+  end
+  
+  def update_event_status event, status
+    event.update(:status => status)
+  end
+  
   def get_event eventId
     return Event.find_by(:_id => eventId)
+  end
+  
+  def get_producer_forms producerId
+    return Form.where(:producer_id => producerId)
   end
   
   def get_form formId
     return Form.find_by(:_id => formId)
   end
   
-  def get_slide eventId, userId
-    return Slide.find_by(:event_id => eventId, :talent_id => userId)
+  def get_client clientId
+    return Client.find_by(:_id => clientId)
   end
   
-  def user_slide_exists? eventId, userId
-    if Slide.where(:event_id => eventId, :talent_id => userId).present?
+  def get_talent talentId
+    return Talent.find_by(:_id => talentId)
+  end
+  
+  def get_slide slideId
+    return Slide.find_by(:_id => slideId)
+  end
+  
+  def negotiation_exists? clientId, eventId
+    if Negotiation.where(:event_id => eventId, :client_id => clientId).present?
       return true
     end
     
     return false
   end
   
-  # Only allow a list of trusted parameters through.
-  def event_params
-    params.fetch(:event, {})
+  def get_negotiation clientId, eventId
+    return Negotiation.find_by(:event_id => eventId, :client_id => clientId)
+  end
+  
+  def get_talent_slide eventId, talentId
+    return Slide.find_by(:event_id => eventId, :talent_id => talentId)
+  end
+  
+  def talent_slide_exists? eventId, talentId
+    if Slide.where(:event_id => eventId, :talent_id => talentId).present?
+      return true
+    end
+    
+    return false
+  end
+  
+  def create_event producerId, params
+    Event.create(:form_id => params[:form_id], :producer_id => producerId, :status => "ACCEPTING", :title => params[:title], :description => params[:description])
   end
 end
